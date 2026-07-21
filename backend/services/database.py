@@ -7,9 +7,13 @@ import asyncio
 import sqlite3
 import threading
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "sunnah_feed.db"
+if os.getenv("VERCEL"):
+    DB_PATH = Path("/tmp/sunnah_feed.db")
+else:
+    DB_PATH = Path(__file__).resolve().parent.parent / "sunnah_feed.db"
 
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
