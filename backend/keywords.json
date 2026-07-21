@@ -1,0 +1,16 @@
+{
+  "_comment": "blocklist: buang video jika judul/deskripsi mengandung salah satu kata ini. allowlist: jika TIDAK kosong, video hanya lolos bila mengandung minimal satu kata ini (opsional).",
+  "blocklist": [
+    "musik",
+    "music",
+    "lagu",
+    "cover lagu",
+    "dj ",
+    "trailer",
+    "film ",
+    "gosip",
+    "prank",
+    "challenge"
+  ],
+  "allowlist": []
+}
