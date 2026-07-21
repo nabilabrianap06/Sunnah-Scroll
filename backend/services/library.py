@@ -3,7 +3,7 @@
 Dipakai saat backfill awal (DB kosong) dan sinkron harian. Feed TIDAK memanggil
 ini; feed hanya membaca dari database (instan, tanpa kuota).
 """
-from . import curator, database
+from services import curator, database
 
 _syncing = False
 

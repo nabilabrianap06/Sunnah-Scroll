@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from .. import config
+import config
 
 router = APIRouter(prefix="/api", tags=["channels"])
 

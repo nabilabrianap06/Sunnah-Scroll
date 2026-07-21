@@ -7,13 +7,20 @@ Merge dengan channels.json yang ada (dedup by channelId). Kuota: search.list =
 100 unit/nama. ~55 nama = ~5.500 unit (sekali seumur setup). Verifikasi hasilnya
 di channels.json dan set "enabled": false untuk yang salah-cocok.
 """
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path to allow absolute imports
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import asyncio
 import json
-import sys
 
 import httpx
 
-from .. import config
+import config
 
 # Konsol Windows default cp1252 -> crash saat cetak judul beraksara Arab.
 try:

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from ..services import database, library
-from ..services.youtube import YouTubeError
+from services import database, library
+from services.youtube import YouTubeError
 
 router = APIRouter(prefix="/api", tags=["feed"])
 

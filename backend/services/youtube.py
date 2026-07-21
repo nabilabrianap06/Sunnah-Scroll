@@ -9,7 +9,7 @@ import re
 
 import httpx
 
-from .. import config
+import config
 
 API_BASE = "https://www.googleapis.com/youtube/v3"
 

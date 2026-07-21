@@ -4,9 +4,9 @@ Dipakai oleh library.sync_library() untuk mengisi database. Feed membaca dari DB
 """
 import httpx
 
-from .. import config
-from . import youtube
-from .cache import TTLCache
+import config
+from services import youtube
+from services.cache import TTLCache
 
 # Uploads playlist id jarang berubah -> cache 24 jam (hemat kuota antar-sinkron).
 _uploads_cache = TTLCache(ttl=60 * 60 * 24)

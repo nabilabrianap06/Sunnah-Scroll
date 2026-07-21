@@ -8,11 +8,19 @@ lalu tempel yang benar ke backend/channels.json dan set "enabled": true.
 
 Catatan kuota: search.list = 100 unit/panggil. 10 nama = ~1000 unit (sekali setup, aman).
 """
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path to allow absolute imports
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 import asyncio
 
 import httpx
 
-from .. import config
+import config
 
 # Sesuaikan daftar ini dengan channel yang ingin kamu kurasi.
 NAMES = [

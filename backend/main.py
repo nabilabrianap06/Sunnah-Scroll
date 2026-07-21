@@ -10,12 +10,20 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path to allow absolute imports in Vercel and local runs
+backend_dir = Path(__file__).resolve().parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import config
-from .routers import channels, feed
-from .services import database, library
+import config
+from routers import channels, feed
+from services import database, library
 
 log = logging.getLogger("sunnahscroll")
 
