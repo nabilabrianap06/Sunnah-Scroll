@@ -175,6 +175,34 @@ body {
 .pctrl-btn:active { transform: scale(0.92); }
 .pctrl-btn.on { background: var(--emerald); color: #fff; }
 
+/* Tombol volume: di tengah, sedikit di bawah ikon play. Muncul saat pause. */
+.vol-btn {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 58px);
+  transform: translateX(-50%);
+  z-index: 6;
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  transition: opacity 0.3s ease, transform 0.12s ease, background 0.15s ease;
+}
+.vol-btn:hover { background: rgba(0, 0, 0, 0.6); }
+.vol-btn:active { transform: translateX(-50%) scale(0.92); }
+.vol-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Saat halaman fullscreen (immersive), player kolom desktop pun isi penuh. */
 :fullscreen .player {
   border-radius: 0;

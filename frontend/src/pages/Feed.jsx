@@ -1,11 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import VideoCard from '../components/VideoCard'
+import { enterFullscreen, exitFullscreen, isFullscreen } from '../lib/fullscreen'
 
 export default function Feed({ videos, onLoadMore, onBack }) {
   const feedRef = useRef(null)
   // Bar atas (back + brand) hanya tampil saat video aktif di-pause.
   const [paused, setPaused] = useState(false)
   const onPausedChange = useCallback((p) => setPaused(p), [])
+
+  // Status fullscreen untuk ikon tombol (Android back bisa keluar fullscreen).
+  const [fs, setFs] = useState(false)
+  useEffect(() => {
+    const onFs = () => setFs(isFullscreen())
+    document.addEventListener('fullscreenchange', onFs)
+    document.addEventListener('webkitfullscreenchange', onFs)
+    onFs()
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs)
+      document.removeEventListener('webkitfullscreenchange', onFs)
+    }
+  }, [])
+  const toggleFs = useCallback(() => {
+    if (isFullscreen()) exitFullscreen()
+    else enterFullscreen()
+  }, [])
 
   // Pindah antar-video secara terprogram (tidak bergantung scroll di atas iframe).
   const go = useCallback((dir) => {
@@ -64,7 +82,14 @@ export default function Feed({ videos, onLoadMore, onBack }) {
 
       <div className="feed" ref={feedRef}>
         {videos.map((v, i) => (
-          <VideoCard key={v.id} video={v} autoStart={i === 0} onPausedChange={onPausedChange} />
+          <VideoCard
+            key={v.id}
+            video={v}
+            autoStart={i === 0}
+            isFs={fs}
+            onToggleFs={toggleFs}
+            onPausedChange={onPausedChange}
+          />
         ))}
       </div>
 

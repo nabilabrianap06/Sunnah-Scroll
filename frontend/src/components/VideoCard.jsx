@@ -3,11 +3,14 @@ import { loadYouTubeApi } from '../lib/youtube'
 
 // Sekali user memulai (pilih video / tap play), video berikutnya autoplay saat masuk layar.
 let sessionStarted = false
+// Preferensi suara global (bertahan antar-video). Default: bersuara. Diubah saat user
+// tekan tombol mute. Dipakai agar suara tak "hilang sendiri" tiap ganti video.
+let preferMuted = false
 
 /** Kartu video portrait ala Shorts dengan kontrol custom (YouTube IFrame API):
- *  tap untuk pause/play + mute + subtitle. Kontrol hanya muncul saat video di-pause.
+ *  tap untuk pause/play + mute + subtitle + fullscreen. Kontrol muncul saat di-pause.
  *  `autoStart` = video ini dipilih user dari beranda, jadi langsung main. */
-function VideoCard({ video, autoStart = false, onPausedChange }) {
+function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPausedChange }) {
   const cardRef = useRef(null)
   const holderRef = useRef(null) // wadah stabil (React) — iframe YT hidup di dalamnya
   const playerRef = useRef(null)
@@ -79,16 +82,20 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
         },
         events: {
           onReady: (e) => {
+            // Ikuti preferensi suara user (kalau sebelumnya membisukan, tetap bisu).
+            if (preferMuted) e.target.mute()
             e.target.playVideo()
             setMuted(e.target.isMuted())
-            // Watchdog: bila autoplay bersuara diblokir browser, video tak kunjung
-            // main. Setelah jeda, mulai dalam keadaan bisu (autoplay bisu selalu
-            // diizinkan) supaya tak ada layar hitam saat scroll.
+            // Watchdog: HANYA sebagai jaring pengaman bila autoplay bersuara benar-benar
+            // diblokir (player mentok UNSTARTED/CUED). JANGAN bisukan video yang sekadar
+            // BUFFERING (loading lambat) — itu penyebab suara "hilang" saat scroll.
             clearTimeout(watchdog.current)
             watchdog.current = setTimeout(() => {
               const p = playerRef.current
               if (!p) return
-              if (p.getPlayerState?.() !== window.YT.PlayerState.PLAYING) {
+              const S = window.YT.PlayerState
+              const st = p.getPlayerState?.()
+              if (st === S.UNSTARTED || st === S.CUED) {
                 try {
                   p.mute()
                   p.playVideo()
@@ -97,7 +104,7 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
                   /* abaikan */
                 }
               }
-            }, 1200)
+            }, 2500)
           },
           onStateChange: (e) => {
             const S = window.YT.PlayerState
@@ -173,12 +180,22 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
     if (!p) return
     if (p.isMuted()) {
       p.unMute()
+      preferMuted = false
       setMuted(false)
     } else {
       p.mute()
+      preferMuted = true
       setMuted(true)
     }
   }, [])
+
+  const toggleFs = useCallback(
+    (e) => {
+      e.stopPropagation()
+      onToggleFs?.()
+    },
+    [onToggleFs],
+  )
 
   const toggleCc = useCallback(
     (e) => {
@@ -238,18 +255,8 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
                 </div>
               )}
 
-              {/* Kontrol kanan-atas — hanya muncul saat video di-pause. */}
+              {/* Kontrol kanan-atas (fullscreen + subtitle) — muncul saat di-pause. */}
               <div className={`pctrl${paused ? '' : ' hidden'}`}>
-                <button
-                  type="button"
-                  className="pctrl-btn"
-                  onClick={toggleMute}
-                  aria-label={muted ? 'Bunyikan' : 'Bisukan'}
-                  title={muted ? 'Bunyikan' : 'Bisukan'}
-                >
-                  {muted ? <IconMuted /> : <IconVolume />}
-                </button>
-
                 {hasCc && (
                   <button
                     type="button"
@@ -261,7 +268,28 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
                     <IconCc />
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  className="pctrl-btn"
+                  onClick={toggleFs}
+                  aria-label={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
+                  title={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
+                >
+                  {isFs ? <IconCompress /> : <IconExpand />}
+                </button>
               </div>
+
+              {/* Tombol volume di tengah, sedikit di bawah ikon play — muncul saat pause. */}
+              <button
+                type="button"
+                className={`vol-btn${paused ? '' : ' hidden'}`}
+                onClick={toggleMute}
+                aria-label={muted ? 'Bunyikan' : 'Bisukan'}
+                title={muted ? 'Bunyikan' : 'Bisukan'}
+              >
+                {muted ? <IconMuted /> : <IconVolume />}
+              </button>
             </>
           ) : (
             <button
@@ -336,6 +364,40 @@ function IconCc() {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
       <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm4.2 6.7c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7C11 8.7 10 8.1 9 8.1c-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2zm7 0c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7c-.5-1.1-1.5-1.6-2.5-1.6-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2z" />
+    </svg>
+  )
+}
+function IconExpand() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+function IconCompress() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 8h3a1 1 0 0 0 1-1V4M20 8h-3a1 1 0 0 1-1-1V4M4 16h3a1 1 0 0 1 1 1v3M20 16h-3a1 1 0 0 0-1 1v3" />
     </svg>
   )
 }
