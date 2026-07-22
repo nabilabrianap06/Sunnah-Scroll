@@ -1,20 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { loadYouTubeApi } from '../lib/youtube'
 
 // Sekali user memulai (pilih video / tap play), video berikutnya autoplay saat masuk layar.
 let sessionStarted = false
 
 /** Kartu video portrait ala Shorts dengan kontrol custom (YouTube IFrame API):
- *  tap untuk pause/play, mute, subtitle, dan fullscreen sungguhan.
+ *  tap untuk pause/play + mute + subtitle. Kontrol hanya muncul saat video di-pause.
  *  `autoStart` = video ini dipilih user dari beranda, jadi langsung main. */
-export default function VideoCard({
-  video,
-  autoStart = false,
-  isFs = false,
-  onToggleFs,
-  chromeVisible = true,
-  onActivity,
-}) {
+function VideoCard({ video, autoStart = false, onPausedChange }) {
   const cardRef = useRef(null)
   const holderRef = useRef(null) // wadah stabil (React) — iframe YT hidup di dalamnya
   const playerRef = useRef(null)
@@ -22,7 +15,8 @@ export default function VideoCard({
   const watchdog = useRef(null)
 
   const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
-  const [playing, setPlaying] = useState(false)
+  const [started, setStarted] = useState(false) // sudah pernah main? -> poster dilepas
+  const [paused, setPaused] = useState(false) // di-pause user? -> kontrol muncul
   const [muted, setMuted] = useState(false)
   const [ccOn, setCcOn] = useState(false)
   const [hasCc, setHasCc] = useState(false)
@@ -50,6 +44,11 @@ export default function VideoCard({
     obs.observe(el)
     return () => obs.disconnect()
   }, [autoStart])
+
+  // Lapor status pause ke Feed (untuk menampilkan bar atas hanya saat pause).
+  useEffect(() => {
+    onPausedChange?.(active ? paused : false)
+  }, [active, paused, onPausedChange])
 
   // Buat / hancurkan player saat status aktif berubah.
   useEffect(() => {
@@ -103,10 +102,11 @@ export default function VideoCard({
           onStateChange: (e) => {
             const S = window.YT.PlayerState
             if (e.data === S.PLAYING) {
-              setPlaying(true)
+              setStarted(true)
+              setPaused(false)
               clearTimeout(watchdog.current)
             } else if (e.data === S.PAUSED || e.data === S.ENDED) {
-              setPlaying(false)
+              setPaused(true)
             }
             // Cek ketersediaan subtitle setelah mulai main.
             try {
@@ -126,7 +126,8 @@ export default function VideoCard({
       const p = playerRef.current
       const holder = holderRef.current
       playerRef.current = null
-      setPlaying(false)
+      setStarted(false)
+      setPaused(false)
       setCcOn(false)
       setHasCc(false)
       if (p && typeof p.destroy === 'function') {
@@ -148,7 +149,7 @@ export default function VideoCard({
   }, [])
 
   // Tap di area video -> pause/play sungguhan (seperti YouTube).
-  const togglePlay = useCallback(() => {
+  const onTap = useCallback(() => {
     const p = playerRef.current
     if (!p) return
     const S = window.YT?.PlayerState
@@ -202,20 +203,6 @@ export default function VideoCard({
     [ccOn],
   )
 
-  const toggleFs = useCallback(
-    (e) => {
-      e.stopPropagation()
-      onToggleFs?.()
-    },
-    [onToggleFs],
-  )
-
-  // Tap area video: pause/play + munculkan kembali UI atas (reset timer sembunyi).
-  const onTap = useCallback(() => {
-    togglePlay()
-    onActivity?.()
-  }, [togglePlay, onActivity])
-
   return (
     <section className="card" ref={cardRef}>
       {video.thumbnail && (
@@ -232,8 +219,9 @@ export default function VideoCard({
             <>
               <div ref={holderRef} className="yt-holder" />
 
-              {/* Poster (thumbnail) sampai video benar-benar main -> cegah layar hitam. */}
-              {!playing && video.thumbnail && (
+              {/* Poster HANYA sebelum video pertama kali main -> cegah layar hitam saat
+                  loading. Setelah main, saat di-pause tampil frame video (bukan poster). */}
+              {!started && video.thumbnail && (
                 <div
                   className="poster"
                   style={{ backgroundImage: `url(${video.thumbnail})` }}
@@ -250,8 +238,8 @@ export default function VideoCard({
                 </div>
               )}
 
-              {/* Kluster kontrol kanan-atas (ikut sembunyi bersama UI atas) */}
-              <div className={`pctrl${chromeVisible ? '' : ' hidden'}`}>
+              {/* Kontrol kanan-atas — hanya muncul saat video di-pause. */}
+              <div className={`pctrl${paused ? '' : ' hidden'}`}>
                 <button
                   type="button"
                   className="pctrl-btn"
@@ -273,16 +261,6 @@ export default function VideoCard({
                     <IconCc />
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  className="pctrl-btn"
-                  onClick={toggleFs}
-                  aria-label={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
-                  title={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
-                >
-                  {isFs ? <IconCompress /> : <IconExpand />}
-                </button>
               </div>
             </>
           ) : (
@@ -309,6 +287,9 @@ export default function VideoCard({
     </section>
   )
 }
+
+// Memo: kartu tak perlu render ulang saat state Feed (mis. status pause aktif) berubah.
+export default memo(VideoCard)
 
 function formatDur(s) {
   const m = Math.floor(s / 60)
@@ -349,40 +330,6 @@ function IconCc() {
   return (
     <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
       <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm4.2 6.7c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7C11 8.7 10 8.1 9 8.1c-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2zm7 0c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7c-.5-1.1-1.5-1.6-2.5-1.6-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2z" />
-    </svg>
-  )
-}
-function IconExpand() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="22"
-      height="22"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
-    </svg>
-  )
-}
-function IconCompress() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="22"
-      height="22"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M4 8h3a1 1 0 0 0 1-1V4M20 8h-3a1 1 0 0 1-1-1V4M4 16h3a1 1 0 0 1 1 1v3M20 16h-3a1 1 0 0 0-1 1v3" />
     </svg>
   )
 }

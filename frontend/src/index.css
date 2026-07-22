@@ -49,6 +49,11 @@ body {
   filter: blur(44px) brightness(0.3) saturate(1.15);
   transform: scale(1.18);
 }
+/* HP: player full-bleed menutupi seluruh layar -> backdrop tak terlihat.
+   Sembunyikan agar tak membuang biaya blur di puluhan kartu (scroll lebih mulus). */
+@media (max-width: 699px) {
+  .backdrop { display: none; }
+}
 
 .stage {
   position: absolute;
@@ -240,11 +245,6 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-@media (min-width: 700px) {
-  .overlay { text-align: center; }
-  .overlay .badges { justify-content: center; }
-  .overlay h2 { margin: 0 auto; }
 }
 
 .brand {

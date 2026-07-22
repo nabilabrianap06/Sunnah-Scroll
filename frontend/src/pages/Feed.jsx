@@ -1,46 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import VideoCard from '../components/VideoCard'
-import { enterFullscreen, exitFullscreen, isFullscreen } from '../lib/fullscreen'
 
 export default function Feed({ videos, onLoadMore, onBack }) {
   const feedRef = useRef(null)
-  const chromeTimer = useRef(null)
-  const [fs, setFs] = useState(false)
-  const [chrome, setChrome] = useState(true) // UI atas terlihat?
-
-  // Munculkan UI atas lalu sembunyikan lagi setelah jeda tanpa interaksi (ala YT Shorts).
-  const bumpChrome = useCallback(() => {
-    setChrome(true)
-    clearTimeout(chromeTimer.current)
-    chromeTimer.current = setTimeout(() => setChrome(false), 2800)
-  }, [])
-
-  useEffect(() => {
-    bumpChrome()
-    const onMove = () => bumpChrome()
-    window.addEventListener('mousemove', onMove)
-    return () => {
-      clearTimeout(chromeTimer.current)
-      window.removeEventListener('mousemove', onMove)
-    }
-  }, [bumpChrome])
-
-  // Ikuti perubahan status fullscreen (termasuk saat user tekan Esc / gestur back).
-  useEffect(() => {
-    const onFs = () => setFs(isFullscreen())
-    document.addEventListener('fullscreenchange', onFs)
-    document.addEventListener('webkitfullscreenchange', onFs)
-    onFs()
-    return () => {
-      document.removeEventListener('fullscreenchange', onFs)
-      document.removeEventListener('webkitfullscreenchange', onFs)
-    }
-  }, [])
-
-  const toggleFs = useCallback(() => {
-    if (isFullscreen()) exitFullscreen()
-    else enterFullscreen()
-  }, [])
+  // Bar atas (back + brand) hanya tampil saat video aktif di-pause.
+  const [paused, setPaused] = useState(false)
+  const onPausedChange = useCallback((p) => setPaused(p), [])
 
   // Pindah antar-video secara terprogram (tidak bergantung scroll di atas iframe).
   const go = useCallback((dir) => {
@@ -68,18 +33,17 @@ export default function Feed({ videos, onLoadMore, onBack }) {
     const feed = feedRef.current
     if (!feed) return
     const onScroll = () => {
-      bumpChrome()
       if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - feed.clientHeight * 2) {
         onLoadMore?.()
       }
     }
     feed.addEventListener('scroll', onScroll, { passive: true })
     return () => feed.removeEventListener('scroll', onScroll)
-  }, [onLoadMore, bumpChrome])
+  }, [onLoadMore])
 
   return (
     <>
-      <div className={`feed-top${chrome ? '' : ' hidden'}`}>
+      <div className={`feed-top${paused ? '' : ' hidden'}`}>
         <button type="button" className="back-btn" onClick={onBack} aria-label="Kembali ke beranda">
           <svg
             viewBox="0 0 24 24"
@@ -100,15 +64,7 @@ export default function Feed({ videos, onLoadMore, onBack }) {
 
       <div className="feed" ref={feedRef}>
         {videos.map((v, i) => (
-          <VideoCard
-            key={v.id}
-            video={v}
-            autoStart={i === 0}
-            isFs={fs}
-            onToggleFs={toggleFs}
-            chromeVisible={chrome}
-            onActivity={bumpChrome}
-          />
+          <VideoCard key={v.id} video={v} autoStart={i === 0} onPausedChange={onPausedChange} />
         ))}
       </div>
 
