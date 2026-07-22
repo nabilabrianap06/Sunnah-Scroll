@@ -1,8 +1,27 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import VideoCard from '../components/VideoCard'
+import { enterFullscreen, exitFullscreen, isFullscreen } from '../lib/fullscreen'
 
 export default function Feed({ videos, onLoadMore, onBack }) {
   const feedRef = useRef(null)
+  const [fs, setFs] = useState(false)
+
+  // Ikuti perubahan status fullscreen (termasuk saat user tekan Esc / gestur back).
+  useEffect(() => {
+    const onFs = () => setFs(isFullscreen())
+    document.addEventListener('fullscreenchange', onFs)
+    document.addEventListener('webkitfullscreenchange', onFs)
+    onFs()
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs)
+      document.removeEventListener('webkitfullscreenchange', onFs)
+    }
+  }, [])
+
+  const toggleFs = useCallback(() => {
+    if (isFullscreen()) exitFullscreen()
+    else enterFullscreen()
+  }, [])
 
   // Pindah antar-video secara terprogram (tidak bergantung scroll di atas iframe).
   const go = useCallback((dir) => {
@@ -61,7 +80,7 @@ export default function Feed({ videos, onLoadMore, onBack }) {
 
       <div className="feed" ref={feedRef}>
         {videos.map((v, i) => (
-          <VideoCard key={v.id} video={v} autoStart={i === 0} />
+          <VideoCard key={v.id} video={v} autoStart={i === 0} isFs={fs} onToggleFs={toggleFs} />
         ))}
       </div>
 

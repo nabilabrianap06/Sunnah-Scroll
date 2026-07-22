@@ -1,9 +1,15 @@
 import { useCallback, useRef, useState } from 'react'
 import { fetchFeed } from './lib/api'
+import { enterFullscreen, exitFullscreen } from './lib/fullscreen'
 import Home from './components/Home'
 import Feed from './pages/Feed'
 
 const BATCH = 20
+
+// Auto layar-penuh saat pilih video hanya di perangkat sentuh (HP) — ala YT Shorts.
+// Di desktop tidak dipaksa (tombol layar-penuh tetap tersedia).
+const AUTO_FS =
+  typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
 export default function App() {
   const [view, setView] = useState('home') // home | feed
@@ -40,6 +46,8 @@ export default function App() {
   const openVideo = useCallback(
     (video) => {
       if (!video) return
+      // Masuk immersive langsung dari gesture tap (butuh gesture user agar diizinkan).
+      if (AUTO_FS) enterFullscreen()
       seen.current = new Set([video.id])
       exhausted.current = false
       setVideos([video])
@@ -49,7 +57,10 @@ export default function App() {
     [loadMore],
   )
 
-  const goHome = useCallback(() => setView('home'), [])
+  const goHome = useCallback(() => {
+    exitFullscreen()
+    setView('home')
+  }, [])
 
   if (view === 'home') return <Home onSelect={openVideo} />
   return <Feed videos={videos} onLoadMore={loadMore} onBack={goHome} />

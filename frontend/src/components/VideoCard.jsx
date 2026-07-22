@@ -7,7 +7,7 @@ let sessionStarted = false
 /** Kartu video portrait ala Shorts dengan kontrol custom (YouTube IFrame API):
  *  tap untuk pause/play, mute, subtitle, dan fullscreen sungguhan.
  *  `autoStart` = video ini dipilih user dari beranda, jadi langsung main. */
-export default function VideoCard({ video, autoStart = false }) {
+export default function VideoCard({ video, autoStart = false, isFs = false, onToggleFs }) {
   const cardRef = useRef(null)
   const holderRef = useRef(null) // div yang akan diganti YT menjadi iframe
   const playerRef = useRef(null)
@@ -18,7 +18,6 @@ export default function VideoCard({ video, autoStart = false }) {
   const [muted, setMuted] = useState(false)
   const [ccOn, setCcOn] = useState(false)
   const [hasCc, setHasCc] = useState(false)
-  const [fs, setFs] = useState(false)
   const [flash, setFlash] = useState(null) // 'play' | 'pause' — ikon kilat saat tap
 
   useEffect(() => {
@@ -102,17 +101,6 @@ export default function VideoCard({ video, autoStart = false }) {
     }
   }, [active, video.id])
 
-  // Sinkron status fullscreen dengan browser.
-  useEffect(() => {
-    const onFs = () => setFs(document.fullscreenElement === cardRef.current)
-    document.addEventListener('fullscreenchange', onFs)
-    document.addEventListener('webkitfullscreenchange', onFs)
-    return () => {
-      document.removeEventListener('fullscreenchange', onFs)
-      document.removeEventListener('webkitfullscreenchange', onFs)
-    }
-  }, [])
-
   const flashIcon = useCallback((kind) => {
     setFlash(kind)
     clearTimeout(flashTimer.current)
@@ -174,23 +162,16 @@ export default function VideoCard({ video, autoStart = false }) {
     [ccOn],
   )
 
-  const toggleFs = useCallback(async (e) => {
-    e.stopPropagation()
-    const el = cardRef.current
-    if (!el) return
-    try {
-      if (document.fullscreenElement) {
-        await (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.())
-      } else {
-        await (el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.())
-      }
-    } catch {
-      /* fullscreen tidak didukung (mis. iOS pada elemen non-video) */
-    }
-  }, [])
+  const toggleFs = useCallback(
+    (e) => {
+      e.stopPropagation()
+      onToggleFs?.()
+    },
+    [onToggleFs],
+  )
 
   return (
-    <section className={`card${fs ? ' is-fs' : ''}`} ref={cardRef}>
+    <section className="card" ref={cardRef}>
       {video.thumbnail && (
         <div
           className="backdrop"
@@ -242,10 +223,10 @@ export default function VideoCard({ video, autoStart = false }) {
                   type="button"
                   className="pctrl-btn"
                   onClick={toggleFs}
-                  aria-label={fs ? 'Keluar layar penuh' : 'Layar penuh'}
-                  title={fs ? 'Keluar layar penuh' : 'Layar penuh'}
+                  aria-label={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
+                  title={isFs ? 'Keluar layar penuh' : 'Layar penuh'}
                 >
-                  {fs ? <IconCompress /> : <IconExpand />}
+                  {isFs ? <IconCompress /> : <IconExpand />}
                 </button>
               </div>
             </>

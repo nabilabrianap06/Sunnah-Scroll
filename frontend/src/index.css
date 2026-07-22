@@ -157,12 +157,8 @@ body {
 .pctrl-btn:active { transform: scale(0.92); }
 .pctrl-btn.on { background: var(--emerald); color: #fff; }
 
-/* Kartu saat fullscreen: player isi penuh, sembunyikan latar blur */
-.card.is-fs .backdrop { display: none; }
-.card.is-fs .player {
-  width: 100vw;
-  height: 100dvh;
-  aspect-ratio: auto;
+/* Saat halaman fullscreen (immersive), player kolom desktop pun isi penuh. */
+:fullscreen .player {
   border-radius: 0;
   box-shadow: none;
 }
