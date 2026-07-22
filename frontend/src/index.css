@@ -112,35 +112,6 @@ body {
   cursor: pointer;
 }
 
-/* Ikon kilat play/pause saat tap (seperti YouTube) */
-.tap-flash {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.tap-flash-ic {
-  width: 84px;
-  height: 84px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 1.9rem;
-  letter-spacing: 2px;
-  animation: flash-pop 0.45s ease-out forwards;
-}
-@keyframes flash-pop {
-  0% { transform: scale(0.7); opacity: 0; }
-  25% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.25); opacity: 0; }
-}
-
 /* Kluster kontrol player (kanan-atas) */
 .pctrl {
   position: absolute;

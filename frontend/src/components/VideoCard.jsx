@@ -15,7 +15,6 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
   const cardRef = useRef(null)
   const holderRef = useRef(null) // wadah stabil (React) — iframe YT hidup di dalamnya
   const playerRef = useRef(null)
-  const flashTimer = useRef(null)
   const watchdog = useRef(null)
 
   const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
@@ -25,7 +24,6 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
   const [muted, setMuted] = useState(false)
   const [ccOn, setCcOn] = useState(false)
   const [hasCc, setHasCc] = useState(false)
-  const [flash, setFlash] = useState(null) // 'play' | 'pause' — ikon kilat saat tap
 
   useEffect(() => {
     if (autoStart) sessionStarted = true
@@ -151,25 +149,18 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
     }
   }, [active, video.id])
 
-  const flashIcon = useCallback((kind) => {
-    setFlash(kind)
-    clearTimeout(flashTimer.current)
-    flashTimer.current = setTimeout(() => setFlash(null), 450)
-  }, [])
-
-  // Tap di area video -> pause/play sungguhan (seperti YouTube).
+  // Tap di area video -> pause/play sungguhan (seperti YouTube). Tanpa ikon kilat
+  // di tengah — perubahan frame video sudah jadi umpan balik yang cukup.
   const onTap = useCallback(() => {
     const p = playerRef.current
     if (!p) return
     const S = window.YT?.PlayerState
     if (p.getPlayerState() === S?.PLAYING) {
       p.pauseVideo()
-      flashIcon('pause')
     } else {
       p.playVideo()
-      flashIcon('play')
     }
-  }, [flashIcon])
+  }, [])
 
   const start = useCallback(() => {
     sessionStarted = true
@@ -250,12 +241,6 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
 
               {/* Lapisan tap: pause/play. Membiarkan swipe scroll lewat. */}
               <div className="tap-catch" onClick={onTap} aria-hidden="true" />
-
-              {flash && (
-                <div className="tap-flash" aria-hidden="true">
-                  <span className="tap-flash-ic">{flash === 'pause' ? '❚❚' : '▶'}</span>
-                </div>
-              )}
 
               {/* Kontrol kanan-atas (fullscreen + subtitle) — muncul saat di-pause. */}
               <div className={`pctrl${paused ? '' : ' hidden'}`}>
