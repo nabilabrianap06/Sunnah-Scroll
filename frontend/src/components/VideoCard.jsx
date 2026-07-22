@@ -16,14 +16,11 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
   const holderRef = useRef(null) // wadah stabil (React) — iframe YT hidup di dalamnya
   const playerRef = useRef(null)
   const watchdog = useRef(null)
-  const revealTimer = useRef(null)
-  const revealScheduled = useRef(false)
 
   const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
   const [avatarOk, setAvatarOk] = useState(true) // avatar channel berhasil dimuat?
-  // Poster menutupi iframe saat loading DAN beberapa detik pertama pemutaran, agar
-  // overlay intro bawaan YouTube (judul + tombol + logo) yang muncul ~3 dtk saat mulai
-  // main tidak terlihat. Setelah itu poster fade -> video bersih.
+  // Poster menutupi iframe HANYA saat loading (cegah layar hitam). Begitu video mulai
+  // main, poster langsung dilepas agar penonton tak kehilangan konteks detik-detik awal.
   const [posterUp, setPosterUp] = useState(true)
   const [paused, setPaused] = useState(false) // di-pause user? -> kontrol muncul
   const [muted, setMuted] = useState(false)
@@ -116,12 +113,7 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
             if (e.data === S.PLAYING) {
               setPaused(false)
               clearTimeout(watchdog.current)
-              // Sekali video benar-benar main: tahan poster ~2,6 dtk lagi untuk
-              // menutupi overlay intro YouTube, lalu fade.
-              if (!revealScheduled.current) {
-                revealScheduled.current = true
-                revealTimer.current = setTimeout(() => setPosterUp(false), 2600)
-              }
+              setPosterUp(false) // langsung lepas poster begitu video main
             } else if (e.data === S.PAUSED || e.data === S.ENDED) {
               setPaused(true)
             }
@@ -140,8 +132,6 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
     return () => {
       cancelled = true
       clearTimeout(watchdog.current)
-      clearTimeout(revealTimer.current)
-      revealScheduled.current = false
       const p = playerRef.current
       const holder = holderRef.current
       playerRef.current = null
@@ -241,8 +231,8 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
             <>
               <div ref={holderRef} className="yt-holder" />
 
-              {/* Poster menutupi iframe saat loading + ~2,6 dtk pertama pemutaran
-                  (menyembunyikan overlay intro YouTube), lalu fade halus. */}
+              {/* Poster menutupi iframe hanya saat loading (cegah layar hitam),
+                  lalu langsung fade begitu video mulai main. */}
               {video.thumbnail && (
                 <div
                   className={`poster${posterUp ? '' : ' gone'}`}

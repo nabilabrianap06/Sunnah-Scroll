@@ -97,15 +97,15 @@ body {
   width: 100%;
   height: 100%;
 }
-/* Poster thumbnail menutupi iframe saat loading + awal pemutaran (menyembunyikan
-   overlay intro YouTube), lalu fade halus. */
+/* Poster thumbnail menutupi iframe hanya saat loading (cegah layar hitam),
+   lalu fade cepat begitu video mulai main (agar konteks awal tak hilang). */
 .poster {
   position: absolute;
   inset: 0;
   z-index: 2;
   background: #000 center/cover no-repeat;
   pointer-events: none;
-  transition: opacity 0.55s ease;
+  transition: opacity 0.25s ease;
 }
 .poster.gone {
   opacity: 0;
