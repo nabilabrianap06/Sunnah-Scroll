@@ -268,5 +268,50 @@
     "name": "أ.د ياسر بن راشد الدوسري",
     "channelId": "UCf5vl3vN4zU2NSdcL-3Z5Nw",
     "enabled": true
+  },
+  {
+    "name": "Moslem Nearer",
+    "channelId": "UCltJREY0F7N0FckSGe3s9OA",
+    "enabled": true
+  },
+  {
+    "name": "Ikhtiar Tawakal",
+    "channelId": "UCOqkMNn9vQlffnVnpeFIMtQ",
+    "enabled": true
+  },
+  {
+    "name": "Dakwah Salaf",
+    "channelId": "UCsYNNL0MPC_GwuXfqR8iyBQ",
+    "enabled": true
+  },
+  {
+    "name": "Muid Said",
+    "channelId": "UCwpxfemTAdyM9b4aDR16B1A",
+    "enabled": true
+  },
+  {
+    "name": "Sahabat Ghifariy",
+    "channelId": "UC4EFZqk7_bqdv1RuvbXLUsQ",
+    "enabled": true
+  },
+  {
+    "name": "Bali Mengaji",
+    "channelId": "UCSYz7VK6L8gUagotPbBngPQ",
+    "enabled": true
+  },
+  {
+    "name": "HSI TV",
+    "channelId": "UCXXamn0ju1I7L4zttR8IZoA",
+    "enabled": true
+  },
+  {
+    "name": "Muhammad Romelan",
+    "channelId": "UC8pUpeYC7aLkojGJmUeqgqQ",
+    "enabled": true
+  },
+  {
+    "name": "Pintu Cahaya Sunnah",
+    "channelId": "UCASVquoFxH0X3UqVty_S_Ew",
+    "enabled": true
   }
 ]
