@@ -1,52 +1,196 @@
-import { useEffect, useRef, useState } from 'react'
-
-// Perangkat sentuh (HP/tablet) -> pakai lapisan penangkap swipe.
-const IS_TOUCH =
-  typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { loadYouTubeApi } from '../lib/youtube'
 
 // Sekali user memulai (pilih video / tap play), video berikutnya autoplay saat masuk layar.
 let sessionStarted = false
 
-/** Kartu video portrait ala Shorts. `autoStart` = video ini dipilih user dari beranda,
- *  jadi langsung main (dan mengaktifkan autoplay untuk video-video setelahnya). */
+/** Kartu video portrait ala Shorts dengan kontrol custom (YouTube IFrame API):
+ *  tap untuk pause/play, mute, subtitle, dan fullscreen sungguhan.
+ *  `autoStart` = video ini dipilih user dari beranda, jadi langsung main. */
 export default function VideoCard({ video, autoStart = false }) {
-  const ref = useRef(null)
-  const [playing, setPlaying] = useState(autoStart)
+  const cardRef = useRef(null)
+  const holderRef = useRef(null) // div yang akan diganti YT menjadi iframe
+  const playerRef = useRef(null)
+  const flashTimer = useRef(null)
+
+  const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const [ccOn, setCcOn] = useState(false)
+  const [hasCc, setHasCc] = useState(false)
+  const [fs, setFs] = useState(false)
+  const [flash, setFlash] = useState(null) // 'play' | 'pause' — ikon kilat saat tap
 
   useEffect(() => {
     if (autoStart) sessionStarted = true
   }, [autoStart])
 
+  // Terlihat di layar -> aktifkan player; keluar layar -> matikan (hemat memori).
   useEffect(() => {
-    const el = ref.current
+    const el = cardRef.current
     if (!el) return
     const obs = new IntersectionObserver(
       ([entry]) => {
         const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6
         if (visible) {
-          if (sessionStarted) setPlaying(true)
+          if (sessionStarted || autoStart) setActive(true)
         } else {
-          setPlaying(false)
+          setActive(false)
         }
       },
       { threshold: [0, 0.6, 1] },
     )
     obs.observe(el)
     return () => obs.disconnect()
+  }, [autoStart])
+
+  // Buat / hancurkan player saat status aktif berubah.
+  useEffect(() => {
+    if (!active) return undefined
+    let cancelled = false
+
+    loadYouTubeApi().then((YT) => {
+      if (cancelled || !holderRef.current) return
+      playerRef.current = new YT.Player(holderRef.current, {
+        videoId: video.id,
+        host: 'https://www.youtube-nocookie.com',
+        playerVars: {
+          autoplay: 1,
+          controls: 0, // kita pakai kontrol custom
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          cc_load_policy: 0,
+        },
+        events: {
+          onReady: (e) => {
+            e.target.playVideo()
+            setMuted(e.target.isMuted())
+          },
+          onStateChange: (e) => {
+            const S = window.YT.PlayerState
+            if (e.data === S.PLAYING) setPlaying(true)
+            else if (e.data === S.PAUSED || e.data === S.ENDED) setPlaying(false)
+            // Cek ketersediaan subtitle setelah mulai main.
+            try {
+              const tracks = e.target.getOption('captions', 'tracklist')
+              setHasCc(Array.isArray(tracks) && tracks.length > 0)
+            } catch {
+              /* modul captions belum siap */
+            }
+          },
+        },
+      })
+    })
+
+    return () => {
+      cancelled = true
+      const p = playerRef.current
+      playerRef.current = null
+      setPlaying(false)
+      setCcOn(false)
+      setHasCc(false)
+      if (p && typeof p.destroy === 'function') {
+        try {
+          p.destroy()
+        } catch {
+          /* abaikan */
+        }
+      }
+    }
+  }, [active, video.id])
+
+  // Sinkron status fullscreen dengan browser.
+  useEffect(() => {
+    const onFs = () => setFs(document.fullscreenElement === cardRef.current)
+    document.addEventListener('fullscreenchange', onFs)
+    document.addEventListener('webkitfullscreenchange', onFs)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFs)
+      document.removeEventListener('webkitfullscreenchange', onFs)
+    }
   }, [])
 
-  const start = () => {
-    sessionStarted = true
-    setPlaying(true)
-  }
-  const toggle = () => (playing ? setPlaying(false) : start())
+  const flashIcon = useCallback((kind) => {
+    setFlash(kind)
+    clearTimeout(flashTimer.current)
+    flashTimer.current = setTimeout(() => setFlash(null), 450)
+  }, [])
 
-  const embedUrl =
-    `https://www.youtube-nocookie.com/embed/${video.id}` +
-    `?autoplay=1&rel=0&modestbranding=1&playsinline=1`
+  // Tap di area video -> pause/play sungguhan (seperti YouTube).
+  const togglePlay = useCallback(() => {
+    const p = playerRef.current
+    if (!p) return
+    const S = window.YT?.PlayerState
+    if (p.getPlayerState() === S?.PLAYING) {
+      p.pauseVideo()
+      flashIcon('pause')
+    } else {
+      p.playVideo()
+      flashIcon('play')
+    }
+  }, [flashIcon])
+
+  const start = useCallback(() => {
+    sessionStarted = true
+    setActive(true)
+  }, [])
+
+  const toggleMute = useCallback((e) => {
+    e.stopPropagation()
+    const p = playerRef.current
+    if (!p) return
+    if (p.isMuted()) {
+      p.unMute()
+      setMuted(false)
+    } else {
+      p.mute()
+      setMuted(true)
+    }
+  }, [])
+
+  const toggleCc = useCallback(
+    (e) => {
+      e.stopPropagation()
+      const p = playerRef.current
+      if (!p) return
+      try {
+        if (ccOn) {
+          p.setOption('captions', 'track', {})
+          setCcOn(false)
+        } else {
+          const tracks = p.getOption('captions', 'tracklist') || []
+          if (tracks.length) {
+            p.setOption('captions', 'track', tracks[0])
+            setCcOn(true)
+          }
+        }
+      } catch {
+        /* modul captions tidak tersedia */
+      }
+    },
+    [ccOn],
+  )
+
+  const toggleFs = useCallback(async (e) => {
+    e.stopPropagation()
+    const el = cardRef.current
+    if (!el) return
+    try {
+      if (document.fullscreenElement) {
+        await (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.())
+      } else {
+        await (el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.())
+      }
+    } catch {
+      /* fullscreen tidak didukung (mis. iOS pada elemen non-video) */
+    }
+  }, [])
 
   return (
-    <section className="card" ref={ref}>
+    <section className={`card${fs ? ' is-fs' : ''}`} ref={cardRef}>
       {video.thumbnail && (
         <div
           className="backdrop"
@@ -57,13 +201,54 @@ export default function VideoCard({ video, autoStart = false }) {
 
       <div className="stage">
         <div className="player">
-          {playing ? (
-            <iframe
-              src={embedUrl}
-              title={video.title}
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              allowFullScreen
-            />
+          {active ? (
+            <>
+              <div ref={holderRef} className="yt-holder" />
+
+              {/* Lapisan tap: pause/play. Membiarkan swipe scroll lewat. */}
+              <div className="tap-catch" onClick={togglePlay} aria-hidden="true" />
+
+              {flash && (
+                <div className="tap-flash" aria-hidden="true">
+                  <span className="tap-flash-ic">{flash === 'pause' ? '❚❚' : '▶'}</span>
+                </div>
+              )}
+
+              {/* Kluster kontrol kanan-atas */}
+              <div className="pctrl">
+                <button
+                  type="button"
+                  className="pctrl-btn"
+                  onClick={toggleMute}
+                  aria-label={muted ? 'Bunyikan' : 'Bisukan'}
+                  title={muted ? 'Bunyikan' : 'Bisukan'}
+                >
+                  {muted ? <IconMuted /> : <IconVolume />}
+                </button>
+
+                {hasCc && (
+                  <button
+                    type="button"
+                    className={`pctrl-btn${ccOn ? ' on' : ''}`}
+                    onClick={toggleCc}
+                    aria-label="Subtitle"
+                    title="Subtitle"
+                  >
+                    <IconCc />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  className="pctrl-btn"
+                  onClick={toggleFs}
+                  aria-label={fs ? 'Keluar layar penuh' : 'Layar penuh'}
+                  title={fs ? 'Keluar layar penuh' : 'Layar penuh'}
+                >
+                  {fs ? <IconCompress /> : <IconExpand />}
+                </button>
+              </div>
+            </>
           ) : (
             <button
               type="button"
@@ -75,8 +260,6 @@ export default function VideoCard({ video, autoStart = false }) {
               <span className="play" aria-hidden="true">▶</span>
             </button>
           )}
-
-          {playing && IS_TOUCH && <div className="tap-catch" onClick={toggle} aria-hidden="true" />}
         </div>
       </div>
 
@@ -95,4 +278,75 @@ function formatDur(s) {
   const m = Math.floor(s / 60)
   const sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+/* --- Ikon (SVG, stroke mengikuti currentColor) --- */
+function IconVolume() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <path d="M3 10v4h4l5 5V5L7 10H3z" />
+      <path
+        d="M16 8.5a4 4 0 0 1 0 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+function IconMuted() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <path d="M3 10v4h4l5 5V5L7 10H3z" />
+      <path
+        d="M16 9l5 6M21 9l-5 6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+function IconCc() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+      <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm4.2 6.7c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7C11 8.7 10 8.1 9 8.1c-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2zm7 0c0-.5.4-.8.9-.8s.8.2 1 .6l1.4-.7c-.5-1.1-1.5-1.6-2.5-1.6-1.6 0-2.9 1.1-2.9 3.1s1.3 3.1 2.9 3.1c1 0 2-.5 2.5-1.6l-1.4-.7c-.2.4-.5.6-1 .6s-.9-.3-.9-.8v-1.2z" />
+    </svg>
+  )
+}
+function IconExpand() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+function IconCompress() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="22"
+      height="22"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 8h3a1 1 0 0 0 1-1V4M20 8h-3a1 1 0 0 1-1-1V4M4 16h3a1 1 0 0 1 1 1v3M20 16h-3a1 1 0 0 0-1 1v3" />
+    </svg>
+  )
 }

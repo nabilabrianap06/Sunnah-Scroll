@@ -86,12 +86,85 @@ body {
   color: inherit;
   font: inherit;
 }
-/* Lapisan penangkap sentuh (HP): biarkan scroll native jalan (jangan set touch-action) */
+.yt-holder {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* Lapisan penangkap sentuh: tap = pause/play. Biarkan scroll native (swipe) lewat. */
 .tap-catch {
   position: absolute;
   inset: 0;
   z-index: 3;
   cursor: pointer;
+}
+
+/* Ikon kilat play/pause saat tap (seperti YouTube) */
+.tap-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.tap-flash-ic {
+  width: 84px;
+  height: 84px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.9rem;
+  letter-spacing: 2px;
+  animation: flash-pop 0.45s ease-out forwards;
+}
+@keyframes flash-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  25% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.25); opacity: 0; }
+}
+
+/* Kluster kontrol player (kanan-atas) */
+.pctrl {
+  position: absolute;
+  top: calc(0.7rem + env(safe-area-inset-top));
+  right: 0.7rem;
+  z-index: 6;
+  display: flex;
+  gap: 0.4rem;
+}
+.pctrl-btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+.pctrl-btn:hover { background: rgba(0, 0, 0, 0.55); }
+.pctrl-btn:active { transform: scale(0.92); }
+.pctrl-btn.on { background: var(--emerald); color: #fff; }
+
+/* Kartu saat fullscreen: player isi penuh, sembunyikan latar blur */
+.card.is-fs .backdrop { display: none; }
+.card.is-fs .player {
+  width: 100vw;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border-radius: 0;
+  box-shadow: none;
 }
 .play {
   width: 74px;
@@ -507,22 +580,22 @@ body {
 }
 .back-btn {
   pointer-events: auto;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: none;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(8px);
+  background: transparent;
   color: #fff;
-  font-size: 1.2rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s ease;
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.85));
+  transition: background 0.15s ease, transform 0.12s ease;
 }
-.back-btn:hover { background: rgba(255, 255, 255, 0.28); }
+.back-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.back-btn:active { transform: scale(0.92); }
 
 @media (prefers-reduced-motion: reduce) {
   .tile, .tile-play, .enter-feed, .ghost-btn, .back-btn { transition: none; }
