@@ -216,24 +216,40 @@ body {
   background: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.3) 55%, transparent);
   pointer-events: none;
 }
-.badges {
+/* Baris info ala sosmed: logo (inisial) + nama channel + durasi */
+.ov-row {
   display: flex;
   align-items: center;
   gap: 0.55rem;
   margin-bottom: 0.55rem;
 }
-.badge {
-  font-size: 0.78rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.16);
-  padding: 0.28rem 0.65rem;
+.ov-logo {
+  flex: none;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
-  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: 1rem;
+  color: #0b1410;
+  background: linear-gradient(150deg, var(--gold-soft), var(--emerald));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.ov-channel {
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.75);
 }
 .dur {
   font-size: 0.75rem;
-  color: #d8d8d8;
+  color: #e0e0e0;
   font-variant-numeric: tabular-nums;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 0.1rem 0.42rem;
+  border-radius: 6px;
 }
 .overlay h2 {
   font-size: 1.02rem;
@@ -579,8 +595,16 @@ body {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: calc(0.8rem + env(safe-area-inset-top)) 1rem 1.4rem;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+  padding: calc(0.8rem + env(safe-area-inset-top)) 1rem 3.2rem;
+  /* Header cukup pekat & tinggi untuk MENUTUPI judul/nama channel bawaan YouTube
+     (yang muncul di dalam iframe saat video di-pause). UI kita berada di atas iframe. */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.98) 0%,
+    rgba(0, 0, 0, 0.96) 52%,
+    rgba(0, 0, 0, 0.6) 80%,
+    transparent 100%
+  );
   pointer-events: none;
   transition: opacity 0.35s ease, transform 0.35s ease;
 }

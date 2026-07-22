@@ -278,8 +278,9 @@ function VideoCard({ video, autoStart = false, onPausedChange }) {
       </div>
 
       <div className="overlay">
-        <div className="badges">
-          <span className="badge">{video.channel}</span>
+        <div className="ov-row">
+          <span className="ov-logo" aria-hidden="true">{initial(video.channel)}</span>
+          <span className="ov-channel">{video.channel}</span>
           {video.durationSec ? <span className="dur">{formatDur(video.durationSec)}</span> : null}
         </div>
         <h2>{video.title}</h2>
@@ -295,6 +296,11 @@ function formatDur(s) {
   const m = Math.floor(s / 60)
   const sec = s % 60
   return `${m}:${String(sec).padStart(2, '0')}`
+}
+
+function initial(name) {
+  const c = (name || '').trim()[0]
+  return c ? c.toUpperCase() : '۞'
 }
 
 /* --- Ikon (SVG, stroke mengikuti currentColor) --- */
