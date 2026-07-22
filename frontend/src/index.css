@@ -97,12 +97,18 @@ body {
   width: 100%;
   height: 100%;
 }
-/* Poster thumbnail (di atas iframe) selama video belum benar-benar main. */
+/* Poster thumbnail menutupi iframe saat loading + awal pemutaran (menyembunyikan
+   overlay intro YouTube), lalu fade halus. */
 .poster {
   position: absolute;
   inset: 0;
   z-index: 2;
   background: #000 center/cover no-repeat;
+  pointer-events: none;
+  transition: opacity 0.55s ease;
+}
+.poster.gone {
+  opacity: 0;
 }
 /* Lapisan penangkap sentuh: tap = pause/play. Biarkan scroll native (swipe) lewat. */
 .tap-catch {
