@@ -7,11 +7,19 @@ let sessionStarted = false
 /** Kartu video portrait ala Shorts dengan kontrol custom (YouTube IFrame API):
  *  tap untuk pause/play, mute, subtitle, dan fullscreen sungguhan.
  *  `autoStart` = video ini dipilih user dari beranda, jadi langsung main. */
-export default function VideoCard({ video, autoStart = false, isFs = false, onToggleFs }) {
+export default function VideoCard({
+  video,
+  autoStart = false,
+  isFs = false,
+  onToggleFs,
+  chromeVisible = true,
+  onActivity,
+}) {
   const cardRef = useRef(null)
-  const holderRef = useRef(null) // div yang akan diganti YT menjadi iframe
+  const holderRef = useRef(null) // wadah stabil (React) — iframe YT hidup di dalamnya
   const playerRef = useRef(null)
   const flashTimer = useRef(null)
+  const watchdog = useRef(null)
 
   const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
   const [playing, setPlaying] = useState(false)
@@ -50,7 +58,14 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
 
     loadYouTubeApi().then((YT) => {
       if (cancelled || !holderRef.current) return
-      playerRef.current = new YT.Player(holderRef.current, {
+      // Penting: beri YT sebuah div ANAK buatan manual (bukan node milik React).
+      // YT mengganti node itu dengan <iframe>. Karena React hanya mengelola
+      // holderRef (yang selalu kosong menurut React), tidak ada konflik DOM saat
+      // kartu di-scroll & di-unmount -> mencegah bug layar hitam.
+      const inner = document.createElement('div')
+      holderRef.current.appendChild(inner)
+
+      playerRef.current = new YT.Player(inner, {
         videoId: video.id,
         host: 'https://www.youtube-nocookie.com',
         playerVars: {
@@ -67,11 +82,32 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
           onReady: (e) => {
             e.target.playVideo()
             setMuted(e.target.isMuted())
+            // Watchdog: bila autoplay bersuara diblokir browser, video tak kunjung
+            // main. Setelah jeda, mulai dalam keadaan bisu (autoplay bisu selalu
+            // diizinkan) supaya tak ada layar hitam saat scroll.
+            clearTimeout(watchdog.current)
+            watchdog.current = setTimeout(() => {
+              const p = playerRef.current
+              if (!p) return
+              if (p.getPlayerState?.() !== window.YT.PlayerState.PLAYING) {
+                try {
+                  p.mute()
+                  p.playVideo()
+                  setMuted(true)
+                } catch {
+                  /* abaikan */
+                }
+              }
+            }, 1200)
           },
           onStateChange: (e) => {
             const S = window.YT.PlayerState
-            if (e.data === S.PLAYING) setPlaying(true)
-            else if (e.data === S.PAUSED || e.data === S.ENDED) setPlaying(false)
+            if (e.data === S.PLAYING) {
+              setPlaying(true)
+              clearTimeout(watchdog.current)
+            } else if (e.data === S.PAUSED || e.data === S.ENDED) {
+              setPlaying(false)
+            }
             // Cek ketersediaan subtitle setelah mulai main.
             try {
               const tracks = e.target.getOption('captions', 'tracklist')
@@ -86,7 +122,9 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
 
     return () => {
       cancelled = true
+      clearTimeout(watchdog.current)
       const p = playerRef.current
+      const holder = holderRef.current
       playerRef.current = null
       setPlaying(false)
       setCcOn(false)
@@ -98,6 +136,8 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
           /* abaikan */
         }
       }
+      // Bersihkan sisa iframe non-React di dalam wadah.
+      if (holder) holder.innerHTML = ''
     }
   }, [active, video.id])
 
@@ -170,6 +210,12 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
     [onToggleFs],
   )
 
+  // Tap area video: pause/play + munculkan kembali UI atas (reset timer sembunyi).
+  const onTap = useCallback(() => {
+    togglePlay()
+    onActivity?.()
+  }, [togglePlay, onActivity])
+
   return (
     <section className="card" ref={cardRef}>
       {video.thumbnail && (
@@ -186,8 +232,17 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
             <>
               <div ref={holderRef} className="yt-holder" />
 
+              {/* Poster (thumbnail) sampai video benar-benar main -> cegah layar hitam. */}
+              {!playing && video.thumbnail && (
+                <div
+                  className="poster"
+                  style={{ backgroundImage: `url(${video.thumbnail})` }}
+                  aria-hidden="true"
+                />
+              )}
+
               {/* Lapisan tap: pause/play. Membiarkan swipe scroll lewat. */}
-              <div className="tap-catch" onClick={togglePlay} aria-hidden="true" />
+              <div className="tap-catch" onClick={onTap} aria-hidden="true" />
 
               {flash && (
                 <div className="tap-flash" aria-hidden="true">
@@ -195,8 +250,8 @@ export default function VideoCard({ video, autoStart = false, isFs = false, onTo
                 </div>
               )}
 
-              {/* Kluster kontrol kanan-atas */}
-              <div className="pctrl">
+              {/* Kluster kontrol kanan-atas (ikut sembunyi bersama UI atas) */}
+              <div className={`pctrl${chromeVisible ? '' : ' hidden'}`}>
                 <button
                   type="button"
                   className="pctrl-btn"

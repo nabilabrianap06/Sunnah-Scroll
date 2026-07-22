@@ -4,7 +4,26 @@ import { enterFullscreen, exitFullscreen, isFullscreen } from '../lib/fullscreen
 
 export default function Feed({ videos, onLoadMore, onBack }) {
   const feedRef = useRef(null)
+  const chromeTimer = useRef(null)
   const [fs, setFs] = useState(false)
+  const [chrome, setChrome] = useState(true) // UI atas terlihat?
+
+  // Munculkan UI atas lalu sembunyikan lagi setelah jeda tanpa interaksi (ala YT Shorts).
+  const bumpChrome = useCallback(() => {
+    setChrome(true)
+    clearTimeout(chromeTimer.current)
+    chromeTimer.current = setTimeout(() => setChrome(false), 2800)
+  }, [])
+
+  useEffect(() => {
+    bumpChrome()
+    const onMove = () => bumpChrome()
+    window.addEventListener('mousemove', onMove)
+    return () => {
+      clearTimeout(chromeTimer.current)
+      window.removeEventListener('mousemove', onMove)
+    }
+  }, [bumpChrome])
 
   // Ikuti perubahan status fullscreen (termasuk saat user tekan Esc / gestur back).
   useEffect(() => {
@@ -49,17 +68,18 @@ export default function Feed({ videos, onLoadMore, onBack }) {
     const feed = feedRef.current
     if (!feed) return
     const onScroll = () => {
+      bumpChrome()
       if (feed.scrollTop + feed.clientHeight >= feed.scrollHeight - feed.clientHeight * 2) {
         onLoadMore?.()
       }
     }
     feed.addEventListener('scroll', onScroll, { passive: true })
     return () => feed.removeEventListener('scroll', onScroll)
-  }, [onLoadMore])
+  }, [onLoadMore, bumpChrome])
 
   return (
     <>
-      <div className="feed-top">
+      <div className={`feed-top${chrome ? '' : ' hidden'}`}>
         <button type="button" className="back-btn" onClick={onBack} aria-label="Kembali ke beranda">
           <svg
             viewBox="0 0 24 24"
@@ -80,7 +100,15 @@ export default function Feed({ videos, onLoadMore, onBack }) {
 
       <div className="feed" ref={feedRef}>
         {videos.map((v, i) => (
-          <VideoCard key={v.id} video={v} autoStart={i === 0} isFs={fs} onToggleFs={toggleFs} />
+          <VideoCard
+            key={v.id}
+            video={v}
+            autoStart={i === 0}
+            isFs={fs}
+            onToggleFs={toggleFs}
+            chromeVisible={chrome}
+            onActivity={bumpChrome}
+          />
         ))}
       </div>
 
