@@ -1,36 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { fetchFeed } from './lib/api'
+import Home from './components/Home'
 import Feed from './pages/Feed'
 
 const BATCH = 20
 
 export default function App() {
+  const [view, setView] = useState('home') // home | feed
   const [videos, setVideos] = useState([])
-  const [status, setStatus] = useState('loading') // loading | ready | empty | error
-  const [error, setError] = useState('')
   const seen = useRef(new Set())
   const loadingMore = useRef(false)
   const exhausted = useRef(false)
-
-  const load = useCallback(async () => {
-    setStatus('loading')
-    setError('')
-    seen.current = new Set()
-    exhausted.current = false
-    try {
-      const data = await fetchFeed(BATCH)
-      if (!data.videos || data.videos.length === 0) {
-        setStatus('empty')
-        return
-      }
-      data.videos.forEach((v) => seen.current.add(v.id))
-      setVideos(data.videos)
-      setStatus('ready')
-    } catch (e) {
-      setError(e?.response?.data?.detail || e.message || 'Gagal memuat feed')
-      setStatus('error')
-    }
-  }, [])
 
   // Infinite scroll: ambil batch acak baru, buang yang sudah tampil, tambahkan.
   const loadMore = useCallback(async () => {
@@ -38,13 +18,12 @@ export default function App() {
     loadingMore.current = true
     try {
       let fresh = []
-      // Coba beberapa kali; pool acak bisa mengembalikan yang sudah dilihat.
       for (let attempt = 0; attempt < 3 && fresh.length === 0; attempt++) {
         const data = await fetchFeed(BATCH)
         fresh = (data.videos || []).filter((v) => !seen.current.has(v.id))
       }
       if (fresh.length === 0) {
-        exhausted.current = true // sudah lihat (hampir) semua isi pustaka
+        exhausted.current = true
         return
       }
       fresh.forEach((v) => seen.current.add(v.id))
@@ -56,46 +35,22 @@ export default function App() {
     }
   }, [])
 
-  useEffect(() => {
-    load()
-  }, [load])
+  // Pilih video dari beranda -> masuk feed mulai dari video itu, lalu langsung
+  // muat satu batch agar ada ruang untuk scroll acak.
+  const openVideo = useCallback(
+    (video) => {
+      if (!video) return
+      seen.current = new Set([video.id])
+      exhausted.current = false
+      setVideos([video])
+      setView('feed')
+      loadMore()
+    },
+    [loadMore],
+  )
 
-  if (status === 'loading') {
-    return (
-      <Center>
-        <h1>SunnahScroll</h1>
-        <p>Memuat kajian…</p>
-      </Center>
-    )
-  }
+  const goHome = useCallback(() => setView('home'), [])
 
-  if (status === 'error') {
-    return (
-      <Center>
-        <h1>⚠️ Gagal memuat</h1>
-        <p>{error}</p>
-        <button onClick={load}>Coba lagi</button>
-      </Center>
-    )
-  }
-
-  if (status === 'empty') {
-    return (
-      <Center>
-        <h1>Pustaka sedang disiapkan</h1>
-        <p className="hint">
-          Video sedang dikumpulkan dari channel di latar belakang. Tunggu sebentar
-          lalu muat ulang. (Butuh <code>YOUTUBE_API_KEY</code> + channel di{' '}
-          <code>channels.json</code>.)
-        </p>
-        <button onClick={load}>Muat ulang</button>
-      </Center>
-    )
-  }
-
-  return <Feed videos={videos} onLoadMore={loadMore} />
-}
-
-function Center({ children }) {
-  return <div className="center">{children}</div>
+  if (view === 'home') return <Home onSelect={openVideo} />
+  return <Feed videos={videos} onLoadMore={loadMore} onBack={goHome} />
 }

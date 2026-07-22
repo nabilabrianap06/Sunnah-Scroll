@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import VideoCard from '../components/VideoCard'
 
-export default function Feed({ videos, onLoadMore }) {
+export default function Feed({ videos, onLoadMore, onBack }) {
   const feedRef = useRef(null)
 
   // Pindah antar-video secara terprogram (tidak bergantung scroll di atas iframe).
@@ -40,11 +40,16 @@ export default function Feed({ videos, onLoadMore }) {
 
   return (
     <>
-      <div className="brand">SunnahScroll</div>
+      <div className="feed-top">
+        <button type="button" className="back-btn" onClick={onBack} aria-label="Kembali ke beranda">
+          <span aria-hidden="true">←</span>
+        </button>
+        <div className="brand">SunnahScroll</div>
+      </div>
 
       <div className="feed" ref={feedRef}>
-        {videos.map((v) => (
-          <VideoCard key={v.id} video={v} />
+        {videos.map((v, i) => (
+          <VideoCard key={v.id} video={v} autoStart={i === 0} />
         ))}
       </div>
 

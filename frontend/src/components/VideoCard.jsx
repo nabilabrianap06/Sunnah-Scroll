@@ -4,15 +4,18 @@ import { useEffect, useRef, useState } from 'react'
 const IS_TOUCH =
   typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
 
-// Sekali user tap "play" pertama, video berikutnya autoplay saat masuk layar
-// (seperti YT Shorts). Video pertama sengaja TIDAK langsung autoplay.
+// Sekali user memulai (pilih video / tap play), video berikutnya autoplay saat masuk layar.
 let sessionStarted = false
 
-/** Kartu video portrait ala Shorts. iframe hanya mount saat main (hemat & auto-pause
- *  saat keluar layar). Di HP, lapisan .tap-catch mengembalikan swipe ke scroll native. */
-export default function VideoCard({ video }) {
+/** Kartu video portrait ala Shorts. `autoStart` = video ini dipilih user dari beranda,
+ *  jadi langsung main (dan mengaktifkan autoplay untuk video-video setelahnya). */
+export default function VideoCard({ video, autoStart = false }) {
   const ref = useRef(null)
-  const [playing, setPlaying] = useState(false)
+  const [playing, setPlaying] = useState(autoStart)
+
+  useEffect(() => {
+    if (autoStart) sessionStarted = true
+  }, [autoStart])
 
   useEffect(() => {
     const el = ref.current
@@ -21,9 +24,9 @@ export default function VideoCard({ video }) {
       ([entry]) => {
         const visible = entry.isIntersecting && entry.intersectionRatio >= 0.6
         if (visible) {
-          if (sessionStarted) setPlaying(true) // autoplay video berikutnya
+          if (sessionStarted) setPlaying(true)
         } else {
-          setPlaying(false) // berhenti saat digeser keluar
+          setPlaying(false)
         }
       },
       { threshold: [0, 0.6, 1] },
@@ -73,7 +76,6 @@ export default function VideoCard({ video }) {
             </button>
           )}
 
-          {/* HP: saat main, rebut sentuhan dari iframe -> swipe = pindah (scroll native), tap = jeda */}
           {playing && IS_TOUCH && <div className="tap-catch" onClick={toggle} aria-hidden="true" />}
         </div>
       </div>

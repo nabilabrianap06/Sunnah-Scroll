@@ -4,6 +4,8 @@ Feed disajikan instan dari sini; pengambilan YouTube hanya saat sinkron latar.
 Pakai sqlite3 stdlib + asyncio.to_thread agar tidak memblok event loop.
 """
 import asyncio
+import json
+import random
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -14,6 +16,21 @@ if os.getenv("VERCEL"):
     DB_PATH = Path("/tmp/sunnah_feed.db")
 else:
     DB_PATH = Path(__file__).resolve().parent.parent / "sunnah_feed.db"
+
+# Seed bawaan: snapshot video yang dibundel ke repo. Menjamin feed TIDAK PERNAH
+# kosong pada start segar (mis. cold start Vercel /tmp), jadi user langsung
+# disuguhkan video tanpa menunggu backfill.
+_SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "videos_seed.json"
+
+
+def _load_seed() -> list[dict]:
+    try:
+        return json.loads(_SEED_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+_SEED: list[dict] = _load_seed()
 
 _lock = threading.Lock()
 _conn: sqlite3.Connection | None = None
@@ -73,13 +90,19 @@ def _random_sync(limit: int) -> list[dict]:
                FROM videos ORDER BY RANDOM() LIMIT ?""",
             (limit,),
         ).fetchall()
-    return [dict(r) for r in rows]
+    if rows:
+        return [dict(r) for r in rows]
+    # DB masih kosong -> sajikan dari seed bawaan (feed tak pernah kosong).
+    if _SEED:
+        return random.sample(_SEED, min(limit, len(_SEED)))
+    return []
 
 
 def _count_sync() -> int:
     conn = _connect()
     with _lock:
-        return conn.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
+    return n if n else len(_SEED)
 
 
 async def init_db() -> None:
