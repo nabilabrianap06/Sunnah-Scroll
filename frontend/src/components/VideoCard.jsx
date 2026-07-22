@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { loadYouTubeApi } from '../lib/youtube'
+import avatars from '../data/channel_avatars.json'
 
 // Sekali user memulai (pilih video / tap play), video berikutnya autoplay saat masuk layar.
 let sessionStarted = false
@@ -18,6 +19,7 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
   const watchdog = useRef(null)
 
   const [active, setActive] = useState(autoStart) // apakah kartu ini punya player hidup
+  const [avatarOk, setAvatarOk] = useState(true) // avatar channel berhasil dimuat?
   const [started, setStarted] = useState(false) // sudah pernah main? -> poster dilepas
   const [paused, setPaused] = useState(false) // di-pause user? -> kontrol muncul
   const [muted, setMuted] = useState(false)
@@ -307,7 +309,19 @@ function VideoCard({ video, autoStart = false, isFs = false, onToggleFs, onPause
 
       <div className="overlay">
         <div className="ov-row">
-          <span className="ov-logo" aria-hidden="true">{initial(video.channel)}</span>
+          <span className="ov-logo" aria-hidden="true">
+            {avatars[video.channelId] && avatarOk ? (
+              <img
+                src={avatars[video.channelId]}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarOk(false)}
+              />
+            ) : (
+              initial(video.channel)
+            )}
+          </span>
           <span className="ov-channel">{video.channel}</span>
           {video.durationSec ? <span className="dur">{formatDur(video.durationSec)}</span> : null}
         </div>
