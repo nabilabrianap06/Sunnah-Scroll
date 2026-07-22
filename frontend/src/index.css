@@ -118,12 +118,13 @@ body {
   cursor: pointer;
 }
 
-/* Kluster kontrol player (kanan-atas) */
+/* Kluster kontrol player (kanan-atas). z-index DI ATAS header mask (15) supaya
+   tombol fullscreen/subtitle tidak tertimbun header gelap saat pause. */
 .pctrl {
   position: absolute;
-  top: calc(0.7rem + env(safe-area-inset-top));
+  top: calc(0.9rem + env(safe-area-inset-top));
   right: 0.7rem;
-  z-index: 6;
+  z-index: 16;
   display: flex;
   gap: 0.4rem;
   transition: opacity 0.35s ease, transform 0.35s ease;
